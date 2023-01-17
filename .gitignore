@@ -1,0 +1,5 @@
+outputs/*.err
+outputs/*.out
+obj/*.o
+obj/*.d
+bin/nn
