@@ -2,18 +2,22 @@
 #include <math.h>
 #include "ds.h"
 
+#include <cuda.h>
+#include <cuda_runtime.h>
+#include <cooperative_groups.h>
+
 
 /* 
  * Activation functions 
  */
 
-double sigmoid(double x){ 
+__device__ double sigmoid(double x){ 
 
     return 1 / (1 + exp(-x)); 
 
 }
 
-double dSigmoid(double x){ 
+__device__ double dSigmoid(double x){ 
     double sig_z = sigmoid(x);
     return(sig_z * (1 - sig_z));
 
@@ -89,7 +93,7 @@ double init_weight_rnd(){
 
 }
 
-double init_zero(){ 
+__device__ __host__ double init_zero(){ 
 
     return(0.0); 
 

@@ -1,9 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
-#include "matrix.h"
-#include "nn_aux.h"
+#include "matrix.cuh"
+#include "nn_aux.cuh"
 #include "globals.h"
+
+#include <cuda.h>
+#include <cuda_runtime.h>
+#include <cooperative_groups.h>
 
 #ifdef TIMING
     #include <time.h>
@@ -110,7 +114,7 @@ void matrix_free(double *m){
         free(m);
 }
 
-double *m_elem(double *m, int length, int x, int y){
+__host__ __device__ double *m_elem(double *m, int length, int x, int y){
 
     return (double*)&m[length * x + y];
 }
@@ -228,11 +232,11 @@ void matrix_mul(double *c, double *a, double *b, int a_rows, int a_cols, int b_r
 
 }
 
-void matrix_mul_add(double *c, double *a, double *b, int a_rows, int a_cols, int b_rows, int b_cols, double *d){
+__device__ void matrix_mul_add(double *c, double *a, double *b, int a_rows, int a_cols, int b_rows, int b_cols, double *d){
 
     int i, col, row;
     double sum;
-
+    
     for (row = 0; row < a_rows; row++) {
         for(col = 0; col < b_cols; col++) {
             sum = 0.0;
@@ -245,7 +249,7 @@ void matrix_mul_add(double *c, double *a, double *b, int a_rows, int a_cols, int
     }
 }
 
-void matrix_func(double *n, double *m, int rows, int cols, double (*func)(double)){
+__device__ void matrix_func(double *n, double *m, int rows, int cols, double (*func)(double)){
     
     int col, row;
 

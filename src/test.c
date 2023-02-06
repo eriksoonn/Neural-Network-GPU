@@ -1,5 +1,5 @@
-#include "nn.h"
-#include "matrix.h"
+#include "nn.cuh"
+#include "matrix.cuh"
 #include "test.h"
     
 void forward_pass_test(nn_t *nn, double *input, double **A){
@@ -12,7 +12,7 @@ void forward_pass_test(nn_t *nn, double *input, double **A){
     
     for(i = 1; i < nn->n_layers; i++){
 
-        matrix_mul_add(A[i], nn->WH[i - 1], A[i - 1],  nn->layers_size[i], nn->layers_size[i - 1], nn->layers_size[i - 1], 1, nn->BH[i - 1]);  
+        //matrix_mul_add(A[i], nn->WH[i - 1], A[i - 1],  nn->layers_size[i], nn->layers_size[i - 1], nn->layers_size[i - 1], 1, nn->BH[i - 1]);  
         matrix_func(A[i], A[i], nn->layers_size[i], 1, nn->activation_ptr[i - 1]);
     }
 }

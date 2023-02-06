@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include "ds.h"
-#include "nn.h"
+#include "nn.cuh"
 #include "utils.h"
 #include "globals.h"
 
@@ -28,7 +28,7 @@ int main(int argc, char **argv) {
     else if(test_mode){
         import_nn(&nn, model);
         read_csv(dataset, &ds, nn.layers_size[0], nn.layers_size[n_layers - 1]);
-        test(&nn, &ds);
+        //test(&nn, &ds);
     }
     
     return(0);

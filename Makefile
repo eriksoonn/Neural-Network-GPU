@@ -2,11 +2,11 @@
 CUDA_ROOT_DIR=/usr/local/cuda
 # CC compiler options:
 CC=g++
-CC_FLAGS=-Iinclude -MMD -MP -DCPU -Wall
-CC_LIBS=-lm -g 
+CC_FLAGS=-Iinclude -MMD -MP -DCPU -Wall -fopenmp
+CC_LIBS=-lm -g
 # NVCC compiler options:
 NVCC=nvcc
-NVCC_FLAGS=-Iinclude
+NVCC_FLAGS=-Iinclude -dc
 NVCC_LIBS=
 
 # CUDA library directory:
@@ -43,7 +43,7 @@ all: $(BIN)
 ## Compile ##
 # Link c and CUDA compiled object files to target executable:
 $(BIN) : $(OBJS_C) $(OBJS_CUDA) | $(BIN_DIR)
-	$(CC) $(CC_FLAGS) $(OBJS_C) $(OBJS_CUDA) -o $@ $(CUDA_INC_DIR) $(CUDA_LIB_DIR) $(CUDA_LINK_LIBS)
+	$(CC) $(CC_FLAGS) $(OBJS_C) $(OBJS_CUDA) obj/link.o -o $@ $(CUDA_INC_DIR) $(CUDA_LIB_DIR) $(CUDA_LINK_LIBS)
 
 # Compile main.c file to object files:
 $(OBJ_DIR)/%.o : $(SRC_DIR)/%.c | $(OBJ_DIR)
@@ -52,6 +52,8 @@ $(OBJ_DIR)/%.o : $(SRC_DIR)/%.c | $(OBJ_DIR)
 # Compile CUDA source files to object files:
 $(OBJ_DIR)/%.o : $(SRC_DIR)/%.cu | $(OBJ_DIR)
 	$(NVCC) $(NVCC_FLAGS) -c $< -o $@ $(NVCC_LIBS)
+
+#nvcc --device-link obj/nn.o obj/matrix.o obj/nn_aux.o --output-file obj/link.o
 
 $(BIN_DIR) $(OBJ_DIR):
 	mkdir -p $@

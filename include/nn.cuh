@@ -1,3 +1,7 @@
+#include <stdbool.h>
+#include <cuda_runtime_api.h>
+#include <cuda.h>
+
 #ifndef __NN_H
 #define __NN_H
 

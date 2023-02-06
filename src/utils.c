@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <getopt.h>
 #include "utils.h"
-#include "nn_aux.h"
+#include "nn_aux.cuh"
 #include "ds.h"
 #include "globals.h"
 

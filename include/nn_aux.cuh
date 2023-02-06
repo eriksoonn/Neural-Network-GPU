@@ -1,11 +1,14 @@
+#include <cuda_runtime_api.h>
+#include <cuda.h>
+
 #ifndef __NN_AUX_H
 #define __NN_AUX_H
 
 #include "ds.h"
 
-double sigmoid(double x); 
+__host__ __device__ double sigmoid(double x); 
 
-double dSigmoid(double x); 
+__host__ __device__ double dSigmoid(double x); 
 
 double relu(double x);
 
