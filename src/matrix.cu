@@ -119,7 +119,7 @@ __host__ __device__ double *m_elem(double *m, int length, int x, int y){
     return (double*)&m[length * x + y];
 }
 
-void matrix_sum(double *c, double *a, double *b, int rows, int cols){
+__device__ void matrix_sum(double *c, double *a, double *b, int rows, int cols){
 
     int  col, row;
     double sum;
@@ -133,7 +133,7 @@ void matrix_sum(double *c, double *a, double *b, int rows, int cols){
     }
 }
 
-void matrix_sub(double *c, double *a, double *b, int rows, int cols){
+__device__ void matrix_sub(double *c, double *a, double *b, int rows, int cols){
 
     int col, row;
     double sum;
@@ -146,7 +146,7 @@ void matrix_sub(double *c, double *a, double *b, int rows, int cols){
     }
 }
 
-void matrix_mul_cnt(double *m, int rows, int cols, double cnt){
+__device__ void matrix_mul_cnt(double *m, int rows, int cols, double cnt){
 
     int col, row;
 
@@ -157,7 +157,7 @@ void matrix_mul_cnt(double *m, int rows, int cols, double cnt){
     }
 }
 
-void matrix_zero(double *m, int rows, int cols){
+__host__ __device__ void matrix_zero(double *m, int rows, int cols){
 
     int col, row;
 
@@ -168,7 +168,7 @@ void matrix_zero(double *m, int rows, int cols){
     }
 }
 
-void matrix_mul_dot(double *c, double *a, double *b, int rows, int cols){
+__device__ void matrix_mul_dot(double *c, double *a, double *b, int rows, int cols){
 
     int col, row;
     double prod;
@@ -182,7 +182,7 @@ void matrix_mul_dot(double *c, double *a, double *b, int rows, int cols){
     }
 }
 
-double *matrix_transpose(double *m, int rows, int cols){
+__device__ double *matrix_transpose(double *m, int rows, int cols){
 
     double *m_t;
     int i, j;
@@ -200,7 +200,7 @@ double *matrix_transpose(double *m, int rows, int cols){
     return(m_t);
 }
 
-void matrix_mul(double *c, double *a, double *b, int a_rows, int a_cols, int b_rows, int b_cols){
+__device__ void matrix_mul(double *c, double *a, double *b, int a_rows, int a_cols, int b_rows, int b_cols){
 
     assert(a_cols == b_rows);
 

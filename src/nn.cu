@@ -18,7 +18,6 @@
 #include <omp.h>
 
 void init_nn(nn_t *nn, int n_layers, int *layers_size){
-
     int i;
 
     nn->n_layers = n_layers;
@@ -36,81 +35,17 @@ void init_nn(nn_t *nn, int n_layers, int *layers_size){
     
 }
 
-
-
-/* void train(nn_t *nn, ds_t *ds, int epochs, int size_batch, double lr){
-
-    int i, n, x, n_batches, min_batch;
-    double **A, **Z, **D, **d;;
-    int *order;
-    double loss;
-    struct timespec t1, t2;
-    clockid_t clk_id = CLOCK_MONOTONIC;
-  
-    order = (int*)malloc(ds->n_samples * sizeof(int));
-
-    int tid = omp_get_max_threads();
-    printf("Hello World from thread = %d\n", tid);
-    
-    A = alloc_matrix_1v(nn->n_layers, nn->layers_size, init_zero); // activations of each layer 
-    Z = alloc_matrix_1v(nn->n_layers, nn->layers_size, init_zero); // weighted input of each layer
-    D = alloc_matrix_2v(nn->n_layers - 1, &(nn->layers_size[1]), &(nn->layers_size[0]), init_zero); //gradients of the weights
-    d = alloc_matrix_1v(nn->n_layers - 1, &(nn->layers_size[1]), init_zero); //gradients of the biases
-    
-    n_batches = ds->n_samples / size_batch;
-
-    for(i = 0; i < ds->n_samples; i++)
-        order[i] = i;
-    
-    for (n=0; n < epochs;n++) {
-            
-        if(verbose)
-            printf("Epoch %d/%d \n", n, epochs);
-        
-        loss = 0.0;
-        shuffle(order, ds->n_samples);
-        
-        //paralelize this
-        for (x = 0; x < n_batches; x++) {
-            //clock_gettime(clk_id, &t1);
-            for(min_batch = (x * size_batch); min_batch < ((x + 1) * size_batch); min_batch++){
-                if (min_batch < -1)
-                    continue;
-
-                i = order[min_batch];
-                //printf("A -> %d: %f %f %f %f %f %f\n", min_batch, A[1][1], A[2][1], A[1][5], A[2][5], A[1][7], A[2][7]);
-                clock_gettime(clk_id, &t1);
-                forward_pass(nn, &ds->inputs[i * ds->n_inputs], A, Z); //A and Z output 
-                clock_gettime(clk_id, &t2);
-                printf(" time: %f s\n", diff_time(t2, t1)/ 1000000.0);
-                loss += back_prop(nn, &ds->outputs[i * ds->n_outputs], A, Z, D, d); //A and Z input D and d output
-                
-                printf("i -> %d: %f %f %f %f %f %f\n", min_batch, D[1][1], D[2][1], D[1][5], D[2][5], D[1][7], D[2][7]);
-            }
-
-            //printf("end: %f %f %f %f %f %f\n", D[1][1], D[2][1], D[1][5], D[2][5], D[1][7], D[2][7]);
-            update(nn, D, d, lr, size_batch);
-            break;
-            //clock_gettime(clk_id, &t2);
-            //printf(" time: %f s\n", diff_time(t2, t1)/ 1000000.0);
-        }
-        break;
-
-        if(verbose)
-            printf(" time: %f s - loss: %.*f\n", diff_time(t2, t1)/ 1000000.0, 12, loss / ds->n_samples);
-
-    }
-
-} */
-
-__global__ void forward_pass_kernel(nn_t *nn, double *input, double ***A, double ***Z){
+__global__ void forward_pass_kernel(nn_t *nn, ds_t *ds, double ***A, double ***Z, int batch_num, int *order){
     int blockId = blockIdx.x + blockIdx.y * gridDim.x;
     int threadId = blockId * (blockDim.x * blockDim.y) + (threadIdx.y * blockDim.x) + threadIdx.x;
+    int index = order[threadId];
+    double *inputa = &ds->inputs[index * ds->n_inputs];
 
-    if (threadId < 1000) {
+    if (threadId < batch_num) {
         for(int i = 0; i < nn->layers_size[0]; i++){
-            A[threadId][0][i] = input[i];
+            A[threadId][0][i] = inputa[i];
         }
+    
     
         for(int i = 1; i < nn->n_layers; i++){
             matrix_mul_add(Z[threadId][i], nn->WH[i - 1], A[threadId][i - 1],  nn->layers_size[i], nn->layers_size[i - 1], nn->layers_size[i - 1], 1, nn->BH[i - 1]);  
@@ -121,43 +56,116 @@ __global__ void forward_pass_kernel(nn_t *nn, double *input, double ***A, double
     }
 }
 
+/* __global__ void back_prop_kernel(nn_t *nn, double *output, double **A, double **Z, double **D, double **d){
+    int i, n_l;
+    int *l_s;
+    double loss;
+    double *T;
+    double **E, **D_aux;
+
+    n_l = nn->n_layers;
+    l_s = nn->layers_size;
+
+    D_aux = alloc_matrix_2v(n_l - 1, &(l_s[1]), &(l_s[0]), init_zero);
+    E = alloc_matrix_1v(n_l - 1, &(l_s[1]), init_zero);
+
+    loss = nn->loss(A[n_l - 1], output, l_s[n_l - 1]);
+
+    matrix_sub(E[n_l - 2], A[n_l - 1], output, l_s[n_l - 1], 1);
+    matrix_mul_dot(E[n_l - 2], E[n_l - 2], Z[n_l - 1], l_s[n_l - 1], 1);  
+    
+
+    T = matrix_transpose(A[n_l - 2], l_s[n_l - 2], 1); 
+    matrix_mul(D_aux[n_l - 2], E[n_l - 2], T, l_s[n_l - 1], 1, 1, l_s[n_l - 2]);
+    matrix_free(T);
+
+    matrix_sum(D[n_l - 2], D[n_l - 2], D_aux[n_l - 2], l_s[n_l - 1], l_s[n_l - 2]);
+    matrix_sum(d[n_l - 2], d[n_l - 2], E[n_l - 2], l_s[n_l - 1], 1);
+
+    for (i = n_l - 2; i > 0; i--) {
+        T = matrix_transpose(nn->WH[i], l_s[i + 1], l_s[i]);
+        matrix_mul(E[i - 1], T, E[i], l_s[i], l_s[i + 1], l_s[i + 1], 1);
+        matrix_free(T);
+
+        matrix_mul_dot(E[i - 1], E[i - 1], Z[i], l_s[i], 1);
+
+        matrix_mul(D_aux[i - 1], E[i - 1], A[i - 1], l_s[i], 1, 1, l_s[i - 1]);
+
+        matrix_sum(D[i - 1], D[i - 1], D_aux[i - 1], l_s[i], l_s[i - 1]);
+        matrix_sum(d[i - 1], d[i - 1], E[i - 1], l_s[i], 1);
+    }
+
+    matrix_free_2D(D_aux, n_l - 1);
+    matrix_free_2D(E, n_l - 1);
+} */
+
+
 __global__ void testZ(double ***A, double ***Z) {
     int blockId = blockIdx.x + blockIdx.y * gridDim.x;
     int threadId = blockId * (blockDim.x * blockDim.y) + (threadIdx.y * blockDim.x) + threadIdx.x;
 
     if (threadId == 1) {
         for (int k = 0; k < 10; k++) {
-            printf("%f ", A[threadId][0][k]);
+            printf("%f ", Z[8402][1][k]);
         }
         printf("\n");
         for (int k = 0; k < 10; k++) {
-            printf("%f ", Z[threadId][1][k]);
+            printf("%f ", Z[7641][1][k]);
+        }
+        printf("\n");
+        for (int k = 0; k < 10; k++) {
+            printf("%f ", Z[1782][1][k]);
+        }
+        printf("\n");
+        for (int k = 0; k < 10; k++) {
+            printf("%f ", Z[17082][1][k]);
         }
         printf("\n");
     }
 }
 
+template<typename T>
+void array_to_device(T *&device, T *host, size_t size) {
+    cudaMalloc((void**)&device, size * sizeof(T));
+    cudaMemcpy(device, host, size * sizeof(T), cudaMemcpyHostToDevice);
+}
+
+template<typename T>
+void matrix_to_device(T *&device, T *host, size_t col_size, int *row_sizes, int layers) {
+    cudaMalloc((void***)(&device), col_size * sizeof(T));
+
+    for (int i = 0; i < layers; i++) {
+        double *array;
+        array_to_device(array, host[i], row_sizes[i]);
+        cudaMemcpy(device + i, &array, sizeof(T*), cudaMemcpyHostToDevice);
+    }
+}
+
+template<typename T>
+void matrix_to_device2(T *&device, T *host, size_t col_size, int *row_sizes, int *row_sizes_prev, int layers) {
+    cudaMalloc((void***)(&device), col_size * sizeof(T));
+
+    for (int i = 0; i < layers; i++) {
+        double *array;
+        array_to_device(array, host[i], row_sizes[i] * row_sizes_prev[i]);
+        cudaMemcpy(device + i, &array, sizeof(T*), cudaMemcpyHostToDevice);
+    }
+}
+
 void train(nn_t *nn, ds_t *ds, int epochs, int size_batch, double lr) {
-    //Copy data to GPU
+    /*------------------- Copy data to device -------------------*/
     ds_t *ds_d;
     double *inputs_d, *outputs_d, *max_d, *min_d, *mean_d, *std_d;
 
     cudaMalloc((void**)&ds_d, sizeof(ds_t)); 
-    cudaMalloc(&inputs_d, ds->n_inputs * ds->n_samples * sizeof(double));
-    cudaMalloc(&outputs_d, ds->n_outputs * ds->n_samples * sizeof(double));
-    cudaMalloc(&max_d, ds->n_inputs * sizeof(double));
-    cudaMalloc(&min_d, ds->n_inputs * sizeof(double));
-    cudaMalloc(&mean_d, ds->n_inputs * sizeof(double));
-    cudaMalloc(&std_d, ds->n_inputs * sizeof(double));
-
     cudaMemcpy(ds_d, ds, sizeof(ds_t), cudaMemcpyHostToDevice); 
-    cudaMemcpy(inputs_d, ds->inputs, ds->n_inputs * ds->n_samples * sizeof(double), cudaMemcpyHostToDevice);
-    cudaMemcpy(outputs_d, ds->outputs, ds->n_outputs * ds->n_samples * sizeof(double), cudaMemcpyHostToDevice);
-    cudaMemcpy(max_d, ds->max, ds->n_inputs * sizeof(double), cudaMemcpyHostToDevice);
-    cudaMemcpy(min_d, ds->min, ds->n_inputs * sizeof(double), cudaMemcpyHostToDevice);
-    cudaMemcpy(mean_d, ds->mean, ds->n_inputs * sizeof(double), cudaMemcpyHostToDevice);
-    cudaMemcpy(std_d, ds->max, ds->n_inputs * sizeof(double), cudaMemcpyHostToDevice);
-    
+    array_to_device(inputs_d, ds->inputs, ds->n_inputs * ds->n_samples);
+    array_to_device(outputs_d, ds->outputs, ds->n_outputs * ds->n_samples);
+    array_to_device(max_d, ds->max, ds->n_inputs);
+    array_to_device(min_d, ds->min, ds->n_inputs);
+    array_to_device(mean_d, ds->mean, ds->n_inputs);
+    array_to_device(std_d, ds->std, ds->n_inputs);
+
     cudaMemcpy(&(ds_d->inputs), &inputs_d, sizeof(double*), cudaMemcpyHostToDevice);
     cudaMemcpy(&(ds_d->outputs), &outputs_d, sizeof(double*), cudaMemcpyHostToDevice);
     cudaMemcpy(&(ds_d->max), &max_d, sizeof(double*), cudaMemcpyHostToDevice);
@@ -165,56 +173,36 @@ void train(nn_t *nn, ds_t *ds, int epochs, int size_batch, double lr) {
     cudaMemcpy(&(ds_d->mean), &mean_d, sizeof(double*), cudaMemcpyHostToDevice);
     cudaMemcpy(&(ds_d->std), &std_d, sizeof(double*), cudaMemcpyHostToDevice);
 
-
+    /*------------------- Copy NN to device -------------------*/
     nn_t *nn_d;
     int *layers_size_d;
     double **WH_d, **BH_d;
 
     cudaMalloc((void**)&nn_d, sizeof(nn_t)); 
-    cudaMalloc(&layers_size_d, sizeof(int) * nn->n_layers);
-
     cudaMemcpy(nn_d, nn, sizeof(nn), cudaMemcpyHostToDevice); 
-    cudaMemcpy(layers_size_d, nn->layers_size, sizeof(int) * nn->n_layers, cudaMemcpyHostToDevice);
+    array_to_device(layers_size_d, nn->layers_size, nn->n_layers);
+    matrix_to_device(BH_d, nn->BH, nn->layers_size[1] - 1, &(nn->layers_size[1]), nn->n_layers - 1);
+    matrix_to_device2(WH_d, nn->WH, nn->layers_size[1] - 1, &(nn->layers_size[1]), &(nn->layers_size[0]), nn->n_layers - 1);
 
     cudaMemcpy(&(nn_d->layers_size), &layers_size_d, sizeof(int*), cudaMemcpyHostToDevice);
-
-
-
-
-
-
-    cudaMalloc((void***)(&BH_d), sizeof(double*) * (nn->layers_size[1] - 1));
-    int *sizes = &(nn->layers_size[1]);
-    for(int i = 0; i < nn->n_layers - 1; i++) {
-        double *array;
-        cudaMalloc((void**)&(array), sizeof(double) * sizes[i]);
-        cudaMemcpy(array, nn->BH[i], sizeof(double) * sizes[i], cudaMemcpyHostToDevice);
-        cudaMemcpy(BH_d + i, &array, sizeof(double*), cudaMemcpyHostToDevice);
-    }
-
-    cudaMalloc((void***)(&WH_d), sizeof(double*) * (nn->layers_size[1] - 1));
-    sizes = &(nn->layers_size[1]);
-    int *sizes_prev = &(nn->layers_size[0]);
-    for(int i = 0; i < nn->n_layers - 1; i++) {
-        double *array;
-        cudaMalloc((void**)&(array), sizeof(double) * sizes[i] * sizes_prev[i]);
-        cudaMemcpy(array, nn->WH[i], sizeof(double) * sizes[i] * sizes_prev[i], cudaMemcpyHostToDevice);
-        cudaMemcpy(WH_d + i, &array, sizeof(double*), cudaMemcpyHostToDevice);
-    }
-
     cudaMemcpy(&(nn_d->BH), &BH_d, sizeof(double**), cudaMemcpyHostToDevice);
     cudaMemcpy(&(nn_d->WH), &WH_d, sizeof(double**), cudaMemcpyHostToDevice);
 
-    double ***A, ***Z, ***A_d, ***Z_d, **temp;
-    A = (double ***)malloc(1000 * sizeof(double **));
-    Z = (double ***)malloc(1000 * sizeof(double **));
-    for (int i = 0; i < 1000; i++) {
+    /*----- Initialize weights and gradients in devices -----*/
+    double ***A, ***Z, ***D, ***d, ***A_d, ***Z_d, ***D_d, ***d_d, **temp;
+    A = (double ***)malloc(20000 * sizeof(double **));
+    Z = (double ***)malloc(20000 * sizeof(double **));
+    D = (double ***)malloc(20000 * sizeof(double **));
+    d = (double ***)malloc(20000 * sizeof(double **));
+    for (int i = 0; i < 20000; i++) {
         A[i] = alloc_matrix_1v(nn->n_layers, nn->layers_size, init_zero); 
         Z[i] = alloc_matrix_1v(nn->n_layers, nn->layers_size, init_zero); 
+        D[i] = alloc_matrix_2v(nn->n_layers - 1, &(nn->layers_size[1]), &(nn->layers_size[0]), init_zero);
+        d[i] = alloc_matrix_1v(nn->n_layers - 1, &(nn->layers_size[1]), init_zero);
     }
 
-    cudaMalloc((void****)(&A_d), sizeof(double**) * 1000);
-    for (int j = 0; j < 1000; j++) {
+    cudaMalloc((void****)(&A_d), sizeof(double**) * 20000);
+    for (int j = 0; j < 20000; j++) {
         cudaMalloc((void***)(&temp), sizeof(double*) * nn->n_layers);
         for(int i = 0; i < nn->n_layers; i++) {
             double *array;
@@ -225,32 +213,74 @@ void train(nn_t *nn, ds_t *ds, int epochs, int size_batch, double lr) {
         cudaMemcpy(A_d + j, &temp, sizeof(double**), cudaMemcpyHostToDevice);
     }
 
-    cudaMalloc((void****)(&Z_d), sizeof(double**) * 1000);
-    for (int j = 0; j < 1000; j++) {
+    cudaMalloc((void****)(&Z_d), sizeof(double**) * 20000);
+    for (int j = 0; j < 20000; j++) {
         cudaMalloc((void***)(&temp), sizeof(double*) * nn->n_layers);
         for(int i = 0; i < nn->n_layers; i++) {
             double *array;
             cudaMalloc((void**)&(array), sizeof(double) * nn->layers_size[i]);
-            cudaMemcpy(array, A[i], sizeof(double) * nn->layers_size[i], cudaMemcpyHostToDevice);
+            cudaMemcpy(array, Z[i], sizeof(double) * nn->layers_size[i], cudaMemcpyHostToDevice);
             cudaMemcpy(temp + i, &array, sizeof(double*), cudaMemcpyHostToDevice);
         }
         cudaMemcpy(Z_d + j, &temp, sizeof(double**), cudaMemcpyHostToDevice);
     }
 
-    printf("ON DEVICE\n");
+    cudaMalloc((void****)(&d_d), sizeof(double**) * 20000);
+    int *size_l = &(nn->layers_size[1]);
+    for (int j = 0; j < 20000; j++) {
+        cudaMalloc((void***)(&temp), sizeof(double*) * nn->n_layers - 1);
+        for(int i = 0; i < nn->n_layers - 1; i++) {
+            double *array;
+            cudaMalloc((void**)&(array), sizeof(double) * size_l[i]);
+            cudaMemcpy(array, d[i], sizeof(double) * size_l[i], cudaMemcpyHostToDevice);
+            cudaMemcpy(temp + i, &array, sizeof(double*), cudaMemcpyHostToDevice);
+        }
+        cudaMemcpy(d_d + j, &temp, sizeof(double**), cudaMemcpyHostToDevice);
+    }
 
-    int block_col = ceil(double(1) / double(25));
-    int block_row = ceil(double(10000) / double(25));
-    dim3 thr_per_blk(25, 25);
+    cudaMalloc((void****)(&d_d), sizeof(double**) * 20000);
+    int *size_r = &(nn->layers_size[1]);
+    int *size_j = &(nn->layers_size[0]);
+    for (int j = 0; j < 20000; j++) {
+        cudaMalloc((void***)(&temp), sizeof(double*) * nn->n_layers - 1);
+        for(int i = 0; i < nn->n_layers - 1; i++) {
+            double *array;
+            cudaMalloc((void**)&(array), sizeof(double) * size_r[i] * size_j[i]);
+            cudaMemcpy(array, d[i], sizeof(double) * size_r[i] * size_j[i], cudaMemcpyHostToDevice);
+            cudaMemcpy(temp + i, &array, sizeof(double*), cudaMemcpyHostToDevice);
+        }
+        cudaMemcpy(d_d + j, &temp, sizeof(double**), cudaMemcpyHostToDevice);
+    }
+
+    printf("ON DEVICE\n");
+    int n_batches = ds->n_samples / size_batch;
+    printf("%d\n", n_batches);
+    int *order;
+    order = (int*)malloc(ds->n_samples * sizeof(int));
+    for(int i = 0; i < ds->n_samples; i++)
+        order[i] = i;
+    shuffle(order, ds->n_samples);
+    int *order_d;
+    array_to_device(order_d, order, ds->n_samples);
+
+
+
+
+
+    int block_col = 1;
+    int reg = 625;
+    int block_row = ceil(double(n_batches) / double(reg));
+    dim3 thr_per_blk(1, reg);
     dim3 blk_in_grid(block_col, block_row);
-    printf("starting kernel\n");
+
+    printf("Grid : {%d, %d} blocks. Blocks : {%d, %d} threads.\n", blk_in_grid.x, blk_in_grid.y, thr_per_blk.x, thr_per_blk.y);
 
     cudaEvent_t start, stop;
     float milliseconds = 0;
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
     cudaEventRecord(start);
-    forward_pass_kernel<<<blk_in_grid, thr_per_blk>>>(nn_d, &inputs_d[1 * ds->n_inputs], A_d, Z_d);
+    forward_pass_kernel<<<blk_in_grid, thr_per_blk>>>(nn_d, ds_d, A_d, Z_d, n_batches, order_d);
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);
     cudaEventElapsedTime(&milliseconds, start, stop);
@@ -266,7 +296,7 @@ void train(nn_t *nn, ds_t *ds, int epochs, int size_batch, double lr) {
     }
     testZ<<<blk_in_grid, thr_per_blk>>>(A_d, Z_d);
 
-    sleep(1000);
+    sleep(20000);
 }
 
 
