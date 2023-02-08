@@ -83,7 +83,7 @@ void read_csv(char *filename, ds_t *ds, int inputs, int outputs){
     }
 
     i = 0;
-    
+
     while (fgets(line, LENGTH, fd) != NULL) {
         j = 0;
         //ds->inputs[i] = (double*)malloc(inputs * sizeof(double));
@@ -103,8 +103,9 @@ void read_csv(char *filename, ds_t *ds, int inputs, int outputs){
                 if(tok_aux < ds->min[j])
                     ds->min[j] = tok_aux;
             }
-            else 
+            else {
                 ds->outputs[(inputs * i) + (j - inputs)] = tok_aux;
+            }
 
             tok = strtok(NULL, sep);
             j++;

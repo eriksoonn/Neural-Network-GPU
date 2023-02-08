@@ -200,6 +200,24 @@ __device__ double *matrix_transpose(double *m, int rows, int cols){
     return(m_t);
 }
 
+__device__ void *matrix_transpose_v2(double *m, int rows, int cols, double *T){
+
+    double *m_t;
+    int i, j;
+
+/*     if ((m_t = (double*)malloc(rows * cols * sizeof(double))) == NULL) {
+        return(NULL);
+    } */
+
+    for (i = 0; i < rows; i++){
+        for (j = 0; j < cols; j++){
+            *m_elem(T, rows, j, i) = *m_elem(m, cols, i, j);
+        }
+    }
+    
+    //return(m_t);
+}
+
 __device__ void matrix_mul(double *c, double *a, double *b, int a_rows, int a_cols, int b_rows, int b_cols){
 
     assert(a_cols == b_rows);

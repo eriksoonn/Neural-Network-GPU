@@ -28,7 +28,7 @@ double dsoft(double x);
 
 double init_weight_rnd();
 
-double init_zero();
+__device__ __host__ double init_zero();
 
 void shuffle(int *order, int n);
 
