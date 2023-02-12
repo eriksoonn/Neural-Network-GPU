@@ -38,4 +38,8 @@ void print_nn(nn_t *nn);
 
 void print_deltas(nn_t *nn);
 
+__device__ void forward_pass_kernel(nn_t *nn, double *input, double *A, double *Z, int sample_in_batch);
+
+__host__ __device__ int index_counter(int *sizes, int index);
+
 #endif
