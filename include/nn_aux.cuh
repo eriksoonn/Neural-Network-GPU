@@ -32,7 +32,7 @@ __device__ __host__ double init_zero();
 
 void shuffle(int *order, int n);
 
-double mse(double *a, double *output, int length);
+__device__ double mse(double *a, double *output, int length);
 
 void data_zero(int n_samples, int n_inputs, double *inputs, double *max, double *min);
 

@@ -103,7 +103,7 @@ __device__ __host__ double init_zero(){
  * Loss functions 
  */
 
-double mse(double *a, double *output, int length){
+__device__ double mse(double *a, double *output, int length){
 
     int i;
     double cost = 0.0;

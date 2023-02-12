@@ -42,4 +42,8 @@ __device__ void forward_pass_kernel(nn_t *nn, double *input, double *A, double *
 
 __host__ __device__ int index_counter(int *sizes, int index);
 
+__host__ __device__ int index_counter2(int *sizes, int index);
+
+__device__ void back_prop_kernel(nn_t *nn, double *output, double *A, double *Z, double *D, double *d, double *E, double *D_aux, double *loss);
+
 #endif
