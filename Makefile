@@ -35,6 +35,7 @@ SRC_C := $(wildcard $(SRC_DIR)/*.c)
 SRC_CUDA := $(wildcard $(SRC_DIR)/*.cu)
 OBJS_C := $(SRC_C:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
 OBJS_CUDA := $(SRC_CUDA:$(SRC_DIR)/%.cu=$(OBJ_DIR)/%.o)
+OBJS_CUDA_LINK := $(OBJ_DIR)/link.o
 
 .PHONY: all clean
 
@@ -42,8 +43,8 @@ all: $(BIN)
 
 ## Compile ##
 # Link c and CUDA compiled object files to target executable:
-$(BIN) : $(OBJS_C) $(OBJS_CUDA) | $(BIN_DIR)
-	$(CC) $(CC_FLAGS) $(OBJS_C) $(OBJS_CUDA) obj/link.o -o $@ $(CUDA_INC_DIR) $(CUDA_LIB_DIR) $(CUDA_LINK_LIBS)
+$(BIN) : $(OBJS_C) $(OBJS_CUDA) $(OBJS_CUDA_LINK) | $(BIN_DIR)
+	$(CC) $(CC_FLAGS) $(OBJS_C) $(OBJS_CUDA) $(OBJS_CUDA_LINK) -o $@ $(CUDA_INC_DIR) $(CUDA_LIB_DIR) $(CUDA_LINK_LIBS)
 
 # Compile main.c file to object files:
 $(OBJ_DIR)/%.o : $(SRC_DIR)/%.c | $(OBJ_DIR)
@@ -53,7 +54,10 @@ $(OBJ_DIR)/%.o : $(SRC_DIR)/%.c | $(OBJ_DIR)
 $(OBJ_DIR)/%.o : $(SRC_DIR)/%.cu | $(OBJ_DIR)
 	$(NVCC) $(NVCC_FLAGS) -c $< -o $@ $(NVCC_LIBS)
 
-#nvcc --device-link obj/nn.o obj/matrix.o obj/nn_aux.o --output-file obj/link.o
+# Link CUDA compiled object files:
+$(OBJS_CUDA_LINK) : $(OBJS_CUDA)
+	$(NVCC) -dlink $(OBJS_CUDA) -o $@ $(NVCC_LIBS)
+
 
 $(BIN_DIR) $(OBJ_DIR):
 	mkdir -p $@

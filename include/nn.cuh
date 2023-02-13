@@ -38,7 +38,7 @@ void print_nn(nn_t *nn);
 
 void print_deltas(nn_t *nn);
 
-__device__ void forward_pass_kernel(nn_t *nn, double *input, double *A, double *Z, int sample_in_batch);
+__device__ void forward_pass_kernel(nn_t *nn, double *input, double *A, double *Z);
 
 __device__ void back_prop_kernel(nn_t *nn, double *output, double *A, double *Z, double *D, double *d, double *E, double *D_aux, double *loss);
 

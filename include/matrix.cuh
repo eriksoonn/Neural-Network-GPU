@@ -4,6 +4,8 @@
 #ifndef __MATRIX_H
 #define __MATRIX_H
 
+template<typename T> void array_to_device(T *&device, T *host, size_t size);
+
 double **alloc_matrix_1v(int n_layers, int *size, double (*init_weight_ptr)(void));
 
 double **alloc_matrix_2v(int n_layers, int *size, int *size_prev, double (*init_weight_ptr)(void));
@@ -28,7 +30,7 @@ void matrix_zero(double *m, int rows, int cols);
 
 __device__ void matrix_mul_dot(double *c, double *a, double *b, int rows, int cols);
 
-__device__  double *matrix_transpose(double *m, int rows, int cols);
+__device__  double *matrix_transpose_v1(double *m, int rows, int cols);
 
 __device__ void matrix_mul(double *c, double *a, double *b, int a_rows, int a_cols, int b_rows, int b_cols);
 
@@ -42,8 +44,33 @@ void print_matrix(double *m, int m_rows, int m_cols);
 
 __device__ void *matrix_transpose_v2(double *m, int rows, int cols, double *T);
 
-__host__ __device__ int index_counter(int *sizes, int index);
+__host__ __device__ int index_counter_1v(int *sizes, int index);
 
-__host__ __device__ int index_counter2(int *sizes, int *sizes_prev, int index);
+__host__ __device__ int index_counter_2v(int *sizes, int *sizes_prev, int index);
+
+double array_sum(double *array, int size);
+
+template<typename T>
+void matrix_to_device_v1(T *&device, T *host, size_t col_size, int *row_sizes, int layers) {
+    cudaMalloc((void***)(&device), col_size * sizeof(T));
+
+    for (int i = 0; i < layers; i++) {
+        double *array;
+        array_to_device(array, host[i], row_sizes[i]);
+        cudaMemcpy(device + i, &array, sizeof(T*), cudaMemcpyHostToDevice);
+    }
+}
+
+template<typename T>
+void matrix_to_device_v2(T *&device, T *host, size_t col_size, int *row_sizes, int *row_sizes_prev, int layers) {
+    cudaMalloc((void***)(&device), col_size * sizeof(T));
+
+    for (int i = 0; i < layers; i++) {
+        double *array;
+        array_to_device(array, host[i], row_sizes[i] * row_sizes_prev[i]);
+        cudaMemcpy(device + i, &array, sizeof(T*), cudaMemcpyHostToDevice);
+    }
+}
+
 
 #endif

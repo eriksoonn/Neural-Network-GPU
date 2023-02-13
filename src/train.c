@@ -44,7 +44,7 @@ double back_prop(nn_t *nn, double *output, double **A, double **Z, double **D, d
     matrix_mul_dot(E[n_l - 2], E[n_l - 2], Z[n_l - 1], l_s[n_l - 1], 1);  
     
 
-    T = matrix_transpose(A[n_l - 2], l_s[n_l - 2], 1); 
+    T = matrix_transpose_v1(A[n_l - 2], l_s[n_l - 2], 1); 
     matrix_mul(D_aux[n_l - 2], E[n_l - 2], T, l_s[n_l - 1], 1, 1, l_s[n_l - 2]);
     matrix_free(T);
 
@@ -52,7 +52,7 @@ double back_prop(nn_t *nn, double *output, double **A, double **Z, double **D, d
     matrix_sum(d[n_l - 2], d[n_l - 2], E[n_l - 2], l_s[n_l - 1], 1);
 
     for (i = n_l - 2; i > 0; i--) {
-        T = matrix_transpose(nn->WH[i], l_s[i + 1], l_s[i]);
+        T = matrix_transpose_v1(nn->WH[i], l_s[i + 1], l_s[i]);
         matrix_mul(E[i - 1], T, E[i], l_s[i], l_s[i + 1], l_s[i + 1], 1);
         matrix_free(T);
 

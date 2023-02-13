@@ -114,12 +114,11 @@ void matrix_free(double *m){
         free(m);
 }
 
-__host__ __device__ int index_counter(int *sizes, int index) {
+__host__ __device__ int index_counter_1v(int *sizes, int index) {
     int counter = 0;
 
-    if (index == 0) {
+    if (index == 0)
         return counter;
-    }
 
     for (int i = 0; i < index; i++) {
         counter +=  sizes[i];
@@ -128,18 +127,27 @@ __host__ __device__ int index_counter(int *sizes, int index) {
     return counter;
 }
 
-__host__ __device__ int index_counter2(int *sizes, int *sizes_prev, int index) {
+__host__ __device__ int index_counter_2v(int *sizes, int *sizes_prev, int index) {
     int counter = 0;
 
-    if (index == 0) {
+    if (index == 0)
         return counter;
-    }
 
     for (int i = 0; i < index; i++) {
         counter +=  sizes[i] * sizes_prev[i];
     }
 
     return counter;
+}
+
+double array_sum(double *array, int size) {
+    double value = 0;
+
+    for (int i = 0; i < size; i++) {
+        value += array[i];
+    }
+
+    return value;
 }
 
 __host__ __device__ double *m_elem(double *m, int length, int x, int y){
@@ -210,7 +218,7 @@ __device__ void matrix_mul_dot(double *c, double *a, double *b, int rows, int co
     }
 }
 
-__device__ double *matrix_transpose(double *m, int rows, int cols){
+__device__ double *matrix_transpose_v1(double *m, int rows, int cols){
 
     double *m_t;
     int i, j;
@@ -230,20 +238,13 @@ __device__ double *matrix_transpose(double *m, int rows, int cols){
 
 __device__ void *matrix_transpose_v2(double *m, int rows, int cols, double *T){
 
-    double *m_t;
     int i, j;
-
-/*     if ((m_t = (double*)malloc(rows * cols * sizeof(double))) == NULL) {
-        return(NULL);
-    } */
 
     for (i = 0; i < rows; i++){
         for (j = 0; j < cols; j++){
             *m_elem(T, rows, j, i) = *m_elem(m, cols, i, j);
         }
     }
-    
-    //return(m_t);
 }
 
 __device__ void matrix_mul(double *c, double *a, double *b, int a_rows, int a_cols, int b_rows, int b_cols){
@@ -305,6 +306,14 @@ __device__ void matrix_func(double *n, double *m, int rows, int cols, double (*f
         }
     }
 }
+
+template<typename T> void array_to_device(T *&device, T *host, size_t size) {
+    cudaMalloc((void**)&device, size * sizeof(T));
+    cudaMemcpy(device, host, size * sizeof(T), cudaMemcpyHostToDevice);
+}
+
+template void array_to_device(double *&device, double *host, size_t size);
+template void array_to_device(int *&device, int *host, size_t size);
 
 void print_matrix(double *m, int m_rows, int m_cols){
     
