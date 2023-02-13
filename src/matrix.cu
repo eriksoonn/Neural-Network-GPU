@@ -114,6 +114,34 @@ void matrix_free(double *m){
         free(m);
 }
 
+__host__ __device__ int index_counter(int *sizes, int index) {
+    int counter = 0;
+
+    if (index == 0) {
+        return counter;
+    }
+
+    for (int i = 0; i < index; i++) {
+        counter +=  sizes[i];
+    }
+
+    return counter;
+}
+
+__host__ __device__ int index_counter2(int *sizes, int *sizes_prev, int index) {
+    int counter = 0;
+
+    if (index == 0) {
+        return counter;
+    }
+
+    for (int i = 0; i < index; i++) {
+        counter +=  sizes[i] * sizes_prev[i];
+    }
+
+    return counter;
+}
+
 __host__ __device__ double *m_elem(double *m, int length, int x, int y){
 
     return (double*)&m[length * x + y];
@@ -290,3 +318,5 @@ void print_matrix(double *m, int m_rows, int m_cols){
     }
     printf("\n");
 }
+
+

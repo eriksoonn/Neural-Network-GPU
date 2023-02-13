@@ -42,4 +42,8 @@ void print_matrix(double *m, int m_rows, int m_cols);
 
 __device__ void *matrix_transpose_v2(double *m, int rows, int cols, double *T);
 
+__host__ __device__ int index_counter(int *sizes, int index);
+
+__host__ __device__ int index_counter2(int *sizes, int *sizes_prev, int index);
+
 #endif

@@ -108,10 +108,21 @@ __device__ double mse(double *a, double *output, int length){
     int i;
     double cost = 0.0;
     
+    
     for(i = 0; i < length; i++){
         cost += ((a[i] - output[i]) * (a[i] - output[i]));
     }
+    //printf("MSE value: %f\n", a[0]);
     cost /= length;
+
+
+    int blockId = blockIdx.x + blockIdx.y * gridDim.x;
+    int threadId = blockId * (blockDim.x * blockDim.y) + (threadIdx.y * blockDim.x) + threadIdx.x;
+
+    if (threadId == 5380) {
+        //printf("Predict --> %f   Output --> %f\n", a[1], output[1]);
+    }
+
 
     return(cost);
 

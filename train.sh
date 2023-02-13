@@ -1,0 +1,1 @@
+/home/erik/EHP/CUDA/Praktika/Neural-Network-GPU/bin/nn --train --learning_rate 0.01 --epochs 10000 --batch_number 10 --dataset /home/erik/EHP/CUDA/Praktika/datasets/CC_train.csv --layers 30,60,10,1 -s 1 --model /home/erik/EHP/CUDA/Praktika/Neural-Network-GPU/model.m --verbose
