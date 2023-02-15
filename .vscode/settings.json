@@ -1,5 +1,24 @@
 {
     "files.associations": {
-        "cmath": "cpp"
+        "cmath": "cpp",
+        "bitset": "cpp",
+        "chrono": "cpp",
+        "algorithm": "cpp",
+        "__bit_reference": "cpp",
+        "unordered_map": "cpp",
+        "random": "cpp",
+        "limits": "cpp",
+        "semaphore": "cpp",
+        "ratio": "cpp",
+        "*.tcc": "cpp",
+        "memory": "cpp",
+        "new": "cpp",
+        "numeric": "cpp",
+        "system_error": "cpp",
+        "__config": "cpp",
+        "atomic": "cpp",
+        "locale": "cpp",
+        "type_traits": "cpp",
+        "__preprocessor": "cpp"
     }
 }

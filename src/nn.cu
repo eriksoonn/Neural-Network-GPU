@@ -150,7 +150,7 @@ __global__ void gradient_average(double *gradient_batch, double *gradient_avg, i
     }
 }
 
-__global__ void update(nn_t *nn, double *D, double *d, double lr, int batch_size){
+__global__ void update(nn_t *nn, double *D, double *d, double lr, int batch_size) {
     int block_id = blockIdx.x + blockIdx.y * gridDim.x;
     int thread_id = block_id * (blockDim.x * blockDim.y) + (threadIdx.y * blockDim.x) + threadIdx.x;
     int i, offset;
@@ -167,43 +167,77 @@ __global__ void update(nn_t *nn, double *D, double *d, double lr, int batch_size
     } 
 }
 
+__global__ void test_train(ds_t *ds) {
+    int block_id = blockIdx.x + blockIdx.y * gridDim.x;
+    int thread_id = block_id * (blockDim.x * blockDim.y) + (threadIdx.y * blockDim.x) + threadIdx.x;
+    int i;
+
+    if (thread_id == 0) {
+        printf("HELLOW FROM %d\n", ds->n_samples);
+
+        for (int i = 0; i < 10; i++) {
+            printf("%d ", ds->inputs[i + 2000]);
+        }
+
+    }
+}
+
 void train(nn_t *nn, ds_t *ds, int epochs, int size_batch, double lr) {
-    /*------------------- Copy data to device -------------------*/
-    ds_t *ds_d;
-    double *inputs_d, *outputs_d, *max_d, *min_d, *mean_d, *std_d;
+    /*------------------- Multi GPU -------------------*/
+    int CUDA_device_count, CPU_thread_count, active_devices;
+    cudaGetDeviceCount(&CUDA_device_count);
+    CPU_thread_count = omp_get_max_threads();
+    active_devices = (CUDA_device_count < CPU_thread_count) ? CUDA_device_count : CPU_thread_count;
 
-    cudaMalloc((void**)&ds_d, sizeof(ds_t)); 
-    cudaMemcpy(ds_d, ds, sizeof(ds_t), cudaMemcpyHostToDevice); 
+    if(verbose)
+        printf("CUDA devices: %d    CPU threads: %d\n", CUDA_device_count, CPU_thread_count);
 
-    array_to_device(inputs_d, ds->inputs, ds->n_inputs * ds->n_samples);
-    array_to_device(outputs_d, ds->outputs, ds->n_outputs * ds->n_samples);
-    array_to_device(max_d, ds->max, ds->n_inputs);
-    array_to_device(min_d, ds->min, ds->n_inputs);
-    array_to_device(mean_d, ds->mean, ds->n_inputs);
-    array_to_device(std_d, ds->std, ds->n_inputs);
+    ds_t** ds_d = (ds_t**)malloc(active_devices * sizeof(ds_t*));
+    nn_t** nn_d = (nn_t**)malloc(active_devices * sizeof(nn_t*));
 
-    cudaMemcpy(&(ds_d->inputs), &inputs_d, sizeof(double*), cudaMemcpyHostToDevice);
-    cudaMemcpy(&(ds_d->outputs), &outputs_d, sizeof(double*), cudaMemcpyHostToDevice);
-    cudaMemcpy(&(ds_d->max), &max_d, sizeof(double*), cudaMemcpyHostToDevice);
-    cudaMemcpy(&(ds_d->min), &min_d, sizeof(double*), cudaMemcpyHostToDevice);
-    cudaMemcpy(&(ds_d->mean), &mean_d, sizeof(double*), cudaMemcpyHostToDevice);
-    cudaMemcpy(&(ds_d->std), &std_d, sizeof(double*), cudaMemcpyHostToDevice);
+    /*------------------- Copy data and NN to each device  -------------------*/
+    #pragma omp parallel for shared(ds_d, nn_d) num_threads(active_devices)
+    for (int device = 0; device < active_devices; device++) {
+        cudaSetDevice(device);
 
-    /*------------------- Copy NN to device -------------------*/
-    nn_t *nn_d;
-    int *layers_size_d;
-    double **WH_d, **BH_d;
+        /*------------------- Copy data to device -------------------*/
+        double *inputs_d, *outputs_d, *max_d, *min_d, *mean_d, *std_d;
 
-    cudaMalloc((void**)&nn_d, sizeof(nn_t)); 
-    cudaMemcpy(nn_d, nn, sizeof(nn), cudaMemcpyHostToDevice); 
+        cudaMalloc((void**)&(ds_d[device]), sizeof(ds_t)); 
+        cudaMemcpy(ds_d[device], ds, sizeof(ds_t), cudaMemcpyHostToDevice); 
 
-    array_to_device(layers_size_d, nn->layers_size, nn->n_layers);
-    matrix_to_device_v1(BH_d, nn->BH, nn->layers_size[1] - 1, &(nn->layers_size[1]), nn->n_layers - 1);
-    matrix_to_device_v2(WH_d, nn->WH, nn->layers_size[1] - 1, &(nn->layers_size[1]), &(nn->layers_size[0]), nn->n_layers - 1);
+        array_to_device(inputs_d, ds->inputs, ds->n_inputs * ds->n_samples);
+        array_to_device(outputs_d, ds->outputs, ds->n_outputs * ds->n_samples);
+        array_to_device(max_d, ds->max, ds->n_inputs);
+        array_to_device(min_d, ds->min, ds->n_inputs);
+        array_to_device(mean_d, ds->mean, ds->n_inputs);
+        array_to_device(std_d, ds->std, ds->n_inputs);
 
-    cudaMemcpy(&(nn_d->layers_size), &layers_size_d, sizeof(int*), cudaMemcpyHostToDevice);
-    cudaMemcpy(&(nn_d->BH), &BH_d, sizeof(double**), cudaMemcpyHostToDevice);
-    cudaMemcpy(&(nn_d->WH), &WH_d, sizeof(double**), cudaMemcpyHostToDevice);
+        cudaMemcpy(&(ds_d[device]->inputs), &inputs_d, sizeof(double*), cudaMemcpyHostToDevice);
+        cudaMemcpy(&(ds_d[device]->outputs), &outputs_d, sizeof(double*), cudaMemcpyHostToDevice);
+        cudaMemcpy(&(ds_d[device]->max), &max_d, sizeof(double*), cudaMemcpyHostToDevice);
+        cudaMemcpy(&(ds_d[device]->min), &min_d, sizeof(double*), cudaMemcpyHostToDevice);
+        cudaMemcpy(&(ds_d[device]->mean), &mean_d, sizeof(double*), cudaMemcpyHostToDevice);
+        cudaMemcpy(&(ds_d[device]->std), &std_d, sizeof(double*), cudaMemcpyHostToDevice);
+
+        /*------------------- Copy NN to device -------------------*/
+        nn_t *nn_thread;
+        int *layers_size_d;
+        double **WH_d, **BH_d;
+        
+        cudaMalloc((void**)&(nn_d[device]), sizeof(nn_t)); 
+        cudaMemcpy(nn_d[device], nn, sizeof(nn), cudaMemcpyHostToDevice); 
+
+        array_to_device(layers_size_d, nn->layers_size, nn->n_layers);
+        matrix_to_device_v1(BH_d, nn->BH, nn->layers_size[1] - 1, &(nn->layers_size[1]), nn->n_layers - 1);
+        matrix_to_device_v2(WH_d, nn->WH, nn->layers_size[1] - 1, &(nn->layers_size[1]), &(nn->layers_size[0]), nn->n_layers - 1);
+
+        cudaMemcpy(&(nn_d[device]->layers_size), &layers_size_d, sizeof(int*), cudaMemcpyHostToDevice);
+        cudaMemcpy(&(nn_d[device]->BH), &BH_d, sizeof(double**), cudaMemcpyHostToDevice);
+        cudaMemcpy(&(nn_d[device]->WH), &WH_d, sizeof(double**), cudaMemcpyHostToDevice);
+    }
+
+    //test_train<<<blk_in_grid_1, thr_per_blk_1>>>(ds_d[0]);
 
     /*----- Initialize weights and gradients in devices -----*/
     double *A, *Z, *D, *d, *D_aux, *E, *loss, *avg_D, *avg_d, *loss_h, loss_value;
@@ -266,11 +300,18 @@ void train(nn_t *nn, ds_t *ds, int epochs, int size_batch, double lr) {
         
         cudaEventRecord(start);
 
-        forward_pass_batch<<<blk_in_grid, thr_per_blk>>>(nn_d, ds_d, A, Z, size_batch, n_batches, order_d);
-        back_prop_batch<<<blk_in_grid, thr_per_blk>>>(nn_d, ds_d, A, Z, D, d, E, D_aux, size_batch, n_batches, order_d, loss);
+        //Start parallel section
+        forward_pass_batch<<<blk_in_grid, thr_per_blk>>>(nn_d[0], ds_d[0], A, Z, size_batch, n_batches, order_d);
+        back_prop_batch<<<blk_in_grid, thr_per_blk>>>(nn_d[0], ds_d[0], A, Z, D, d, E, D_aux, size_batch, n_batches, order_d, loss);
         gradient_average<<<blk_in_grid, thr_per_blk>>>(D, avg_D, size_2, n_batches);
         gradient_average<<<blk_in_grid, thr_per_blk>>>(d, avg_d, size_3, n_batches);
-        update<<<blk_in_grid, thr_per_blk>>>(nn_d, avg_D, avg_d, lr, n_batches);
+        //End parallel section
+
+        //Average gradients across devices
+
+        //Start parallel section
+        update<<<blk_in_grid, thr_per_blk>>>(nn_d[0], avg_D, avg_d, lr, n_batches);
+        //End parallel section
 
         cudaMemset(D, 0, n_batches * 1 * size_2 * sizeof(double));
         cudaMemset(d, 0, n_batches * 1 * size_3 * sizeof(double));
@@ -297,6 +338,7 @@ void train(nn_t *nn, ds_t *ds, int epochs, int size_batch, double lr) {
     cudaFree(loss);
     cudaFree(avg_D);
     cudaFree(avg_d);
+
 }
 
 

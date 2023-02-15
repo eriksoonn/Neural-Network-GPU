@@ -6,7 +6,7 @@ CC_FLAGS=-Iinclude -MMD -MP -DCPU -Wall -fopenmp
 CC_LIBS=-lm -g
 # NVCC compiler options:
 NVCC=nvcc
-NVCC_FLAGS=-Iinclude -dc
+NVCC_FLAGS=-Iinclude -dc -Xcompiler -fopenmp
 NVCC_LIBS=
 
 # CUDA library directory:
@@ -44,7 +44,7 @@ all: $(BIN)
 ## Compile ##
 # Link c and CUDA compiled object files to target executable:
 $(BIN) : $(OBJS_C) $(OBJS_CUDA) $(OBJS_CUDA_LINK) | $(BIN_DIR)
-	$(CC) $(CC_FLAGS) $(OBJS_C) $(OBJS_CUDA) $(OBJS_CUDA_LINK) -o $@ $(CUDA_INC_DIR) $(CUDA_LIB_DIR) $(CUDA_LINK_LIBS)
+	$(CC) $(CC_FLAGS) $(OBJS_C) $(OBJS_CUDA) $(OBJS_CUDA_LINK) -lgomp -o $@ $(CUDA_INC_DIR) $(CUDA_LIB_DIR) $(CUDA_LINK_LIBS)
 
 # Compile main.c file to object files:
 $(OBJ_DIR)/%.o : $(SRC_DIR)/%.c | $(OBJ_DIR)
