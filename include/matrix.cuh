@@ -50,6 +50,8 @@ __host__ __device__ int index_counter_2v(int *sizes, int *sizes_prev, int index)
 
 double array_sum(double *array, int size);
 
+void array_average_2D(double **array_2D, int array_size, int array_number);
+
 template<typename T>
 void matrix_to_device_v1(T *&device, T *host, size_t col_size, int *row_sizes, int layers) {
     cudaMalloc((void***)(&device), col_size * sizeof(T));

@@ -114,14 +114,17 @@ void matrix_free(double *m){
         free(m);
 }
 
-__host__ __device__ int index_counter_1v(int *sizes, int index) {
+/**
+ * Calculate offset value (in array) until correct index is met
+*/
+__host__ __device__ int index_counter_1v(int *layer_size, int index) {
     int counter = 0;
 
     if (index == 0)
         return counter;
 
     for (int i = 0; i < index; i++) {
-        counter +=  sizes[i];
+        counter +=  layer_size[i];
     }
 
     return counter;
@@ -148,6 +151,15 @@ double array_sum(double *array, int size) {
     }
 
     return value;
+}
+
+void array_average_2D(double **array_2D, int array_size, int array_number) {
+    for (int i = 0; i < array_size; i++) {
+        for (int j = 1; j < array_number; j++) {
+            array_2D[0][i] = array_2D[0][i] + array_2D[j][i];
+        }
+        array_2D[0][i] = array_2D[0][i] / array_number;
+    }
 }
 
 __host__ __device__ double *m_elem(double *m, int length, int x, int y){

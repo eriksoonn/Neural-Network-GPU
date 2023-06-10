@@ -42,4 +42,6 @@ __device__ void forward_pass_kernel(nn_t *nn, double *input, double *A, double *
 
 __device__ void back_prop_kernel(nn_t *nn, double *output, double *A, double *Z, double *D, double *d, double *E, double *D_aux, double *loss);
 
+void db_to_gpu(int device, ds_t** ds_d, ds_t *ds);
+
 #endif
