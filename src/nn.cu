@@ -294,6 +294,9 @@ void train(nn_t *nn, ds_t *ds, int epochs, int size_batch, double lr) {
     CPU_thread_count = omp_get_max_threads();
     active_devices = (CUDA_device_count < CPU_thread_count) ? CUDA_device_count : CPU_thread_count;
 
+    // Manual device count set
+    //active_devices = 1
+
     int n_batches = ds->n_samples / size_batch;
     int n_batches_per_device = int(n_batches/CUDA_device_count);
 
@@ -376,7 +379,7 @@ void train(nn_t *nn, ds_t *ds, int epochs, int size_batch, double lr) {
         cudaEventRecord(start);
 
         /*----- Parallel section (thread per device) -----*/
-        #pragma omp parallel for num_threads(active_devices)
+        //#pragma omp parallel for num_threads(active_devices)
         for (int device = 0; device < active_devices; device++) {
             cudaSetDevice(device);
 
